@@ -1,7 +1,7 @@
 # HANDOFF — 下个会话从这里开始
 
 > 每次会话结束时更新本文件：状态快照 + 下一步 backlog + 环境启动清单。
-> 最后更新：2026-09-16（会话 7：真实 OCR 联调 ✓、50 PR 评测 ✓、发布文案就绪）。
+> 最后更新：2026-09-16（会话 8：v0.4.0 --llm + --tests 完成，36 测试全绿，feat/llm-0.4 分支）。
 >
 > **仓库已达到"可发布"状态**：v0.3.1 + 真数据 demo GIF + 50 PR 评测背书 +
 > 三篇发布文案（docs/RELEASE.md）。剩下的是发布日本人的操作。
@@ -72,3 +72,43 @@ BENCH-zh/AGENTS-full）**不再入库**（docs-internal/ 已 gitignore），只�
 BENCH.md、PRODUCT.md 和素材。git 历史已压成单条 "initial public release"
 （旧中文文档与发布剧本从历史中一并清除）。下次会话注意：更新归档时改
 docs-internal/ 下的文件，别在 docs/ 里新建中文文档。
+
+## 发布日状态（2026-09-16 20:30）
+
+- 仓库已转公开 + 历史清洗完成（单条 v0.3.1 公开提交，英文公开文档）
+- 掘金：文章已提交，审核中（链接 juejin.cn/spost/7685966242269184038，过审后可公开访问）
+- HelloGitHub：已提交收录申请，等审核
+- HN：新号被限 Show HN → dang 邮件已起草（dang-email.txt），收件人改为
+  hn@ycombinator.com（dang@ 已退信不存在）、称呼改 "Hi HN moderators"，
+  待用户重发；或养号 1-2 周后自行发
+- Reddit：u/zuoqing 被 r/opensource 年龄门槛 + 站级过滤器双重拦截，进入
+  养号期（1-2 周内零自荐帖），HN/Reddit 发布顺延为"下一个大事件"
+- 48h 内：守掘金/HelloGitHub/仓库的 issue 与评论；有 bug 报告转 feat/llm-0.4
+
+## 发布日执行记录（2026-09-16 晚，全部完成 ✅）
+
+| 时间 | 事件 |
+|---|---|
+| 19:2x | 仓库转公开；描述 + 8 个 topics 设置；密钥扫描干净 |
+| 19:4x | 发现中文内部文档公开暴露 → 移入 docs-internal/（不入库）+ 英文公开文档重写 + git 历史压成单条 v0.3.1 公开提交（a89df85）强推，RELEASE/HANDOFF 从历史中清除 |
+| 20:00 | Show HN 被新号限制（HN 官方临时政策）→ 启动 dang 邮件路线 |
+| 20:05 | Reddit r/opensource 被 1 年年龄门槛删帖 |
+| 20:1x | Reddit r/SideProject 被站级过滤器删 → Reddit 进入养号期（1-2 周零自荐） |
+| 20:1x | 掘金文章提交，审核中；HelloGitHub 收录申请提交 ✓ |
+| 20:10 | dang@ycombinator.com 退信（地址不存在）→ 改 hn@ycombinator.com |
+| 20:3x | **HN 邮件已重发至 hn@ycombinator.com（"Hi HN moderators"），等待回信 ✅** |
+
+## 下个会话入口
+
+1. 检查三渠道反馈：掘金评论（过审后链接 juejin.cn/spost/7685966242269184038）、
+   HelloGitHub 收录结果、GitHub issue/PR——用户会贴过来，帮起草回复；
+2. dang 回信后：对接措辞、按版主指示执行 Show HN；
+3. v0.4 `--llm` 开发在 feat/llm-0.4 分支继续（设计已定：REVIEWHEAT_LLM_API_KEY/
+   BASE_URL/MODEL env 三件套，支持 Ollama，只分类低置信 hunk，无 --api-key 参数）；
+4. AI-heavy 仓库专项评测（docs/BENCH.md 遗留项）择机补跑。
+
+## 会话 8 追加（2026-09-16 晚）
+
+v0.4.0 在 feat/llm-0.4 完成（未合并 main——发布窗口期 main 保持 v0.3.1）。
+配置本机 LLM：export REVIEWHEAT_LLM_API_KEY=<百炼 key> REVIEWHEAT_LLM_BASE_URL=
+https://dashscope.aliyuncs.com/compatible-mode/v1 REVIEWHEAT_LLM_MODEL=qwen3.6-flash

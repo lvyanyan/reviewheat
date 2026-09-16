@@ -50,6 +50,8 @@ npx reviewheat                    # analyze uncommitted changes / last commit
 npx reviewheat --diff-file pr.diff # analyze any unified diff file
 npx reviewheat --ocr ocr.json     # overlay open-code-review findings onto the heatmap
 npx reviewheat --with-ocr         # one command: run `ocr review` itself, then overlay
+npx reviewheat --llm              # classify ambiguous hunks with an LLM (BYO key, Ollama works)
+npx reviewheat --tests            # generate test-file suggestions for red zones
 npx reviewheat --fail-on high     # CI gate
 ```
 

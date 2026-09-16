@@ -75,9 +75,33 @@ reviewheat --no-open           # don't open the HTML report
 reviewheat --fail-on <level>   # CI gate: exit 1 if a file ≥ level lacks tests
 reviewheat --ocr <file|->      # pin open-code-review JSON findings ('-' = stdin)
 reviewheat --with-ocr          # run `ocr review` itself, then overlay
+reviewheat --llm               # classify ambiguous (medium) hunks with an LLM
+reviewheat --tests             # generate test-file suggestions for red zones
 reviewheat --pr <n>            # (planned v0.5) analyze a GitHub PR
-reviewheat --llm               # (planned v0.4) LLM behavior classification, BYO key
 ```
+
+### LLM configuration (opt-in)
+
+Everything works offline by default; `--llm` and `--tests` are the only
+features that call a model, and they run only when explicitly requested.
+Configure via environment variables:
+
+```
+REVIEWHEAT_LLM_API_KEY    required (any OpenAI-compatible provider)
+REVIEWHEAT_LLM_BASE_URL   default https://api.openai.com/v1
+REVIEWHEAT_LLM_MODEL      default gpt-4o-mini
+```
+
+Local Ollama works: `REVIEWHEAT_LLM_BASE_URL=http://localhost:11434/v1`.
+There is deliberately **no CLI flag for API keys** — keys in argv leak into
+shell history and process lists.
+
+Behavior: `--llm` classifies only the ambiguous (medium-band) hunks and
+applies **bounded, labeled** adjustments (cosmetic caps a hunk at 15, a
+confident "risky" verdict floors it at 75 — every adjustment carries a 🤖
+chip with its reason). `--tests` writes suggested test files for HIGH+
+files with no co-changed tests into `reviewheat-suggested-tests/` —
+starting points to edit, not finished tests.
 
 Exit codes: 0 ok, 1 `--fail-on` triggered, 2 usage/environment error.
 
@@ -88,7 +112,7 @@ Exit codes: 0 ok, 1 `--fail-on` triggered, 2 usage/environment error.
 | v0.1 | diff parser + heuristics + terminal summary + HTML heatmap + fail-on | done |
 | v0.2 | config/snapshot heuristics (50-PR benchmark), --ref, bench harness | done |
 | v0.3 | --ocr overlay + --with-ocr one-command flow + --diff-file + demo GIF | done |
-| v0.4 | --llm behavior classification + targeted test generation | planned |
+| v0.4 | --llm behavior classification + targeted test generation | done |
 | v0.5 | GitHub Action + --pr mode | planned |
 | v0.6 | standalone binaries (macOS/Linux/Windows, no Node needed) | planned |
 

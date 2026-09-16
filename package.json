@@ -1,6 +1,6 @@
 {
   "name": "reviewheat",
-  "version": "0.3.1",
+  "version": "0.4.0",
   "description": "Risk heatmap for pull requests — review the 5% of AI-generated code that actually matters.",
   "type": "module",
   "license": "MIT",

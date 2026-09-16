@@ -187,3 +187,30 @@
   **待用户续 token 时加勾 workflow scope 后 `git add -f` 补推。**
 - `.token-own` 是 fine-grained PAT（授权清单 = 9 个老仓库），对新仓库无写权限。
 - 1080 端口曾被旧隧道进程占用后死亡；重启隧道流程见 HANDOFF.md。
+
+## 2026-09-16 · 会话 8：v0.4 `--llm` + `--tests`
+
+### 完成
+- `src/llm.ts`：env 配置解析（REVIEWHEAT_LLM_API_KEY/BASE_URL/MODEL，支持
+  Ollama）、候选收集（medium 带的源码 hunk，上限 40）、单次调用批量分类、
+  宽容 JSON 解析、有界结果应用（cosmetic 封顶 15 / refactor 35 / behavioral
+  下限 50 / risky 下限 75，置信度 ≥0.6 才动分，全部带 🤖 标注）。
+- `--tests`：对 HIGH+ 且 testGap 的文件生成测试建议文件，写入
+  reviewheat-suggested-tests/（gitignore），上限 5 个。
+- main 异步化（Promise 包裹 exitCode）；36 测试全绿；版本 0.4.0。
+- 真实端到端：百炼 qwen3.6-flash 对 GameManager@5453334 跑 `--tests`，
+  生成 143 行 vitest（正确 mock 微信 wx 全局、覆盖安全区计算边界），
+  留档 demo/GameRoot.test.ts。
+
+### 决策记录
+- **LLM 只碰 medium 带**：critical 已经红了不用确认，low 不值得花 token；
+  分类结果有界调整（不上调到超过 heuristic 的强信号），且每个调整带 reason。
+- **无 --api-key CLI 参数**：argv 会进 shell history/进程列表，安全红线。
+- 测试生成定位为"建议起点"而非成品：LLM 生成的测试需要人工过目，
+  目录独立 + gitignore，避免污染用户仓库。
+
+### 踩坑
+- buildHelp 模板字符串里未转义反引号，第二次踩同一坑（ ingrained 了：
+  写帮助文本先想转义）。
+- 测试 fixture 想造 medium hunk：全行为变更 30 分 + test-gap 25 = HIGH，
+  medium 需要混合行为/注释行——写 fixture 前先手动过一遍打分公式。

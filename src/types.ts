@@ -42,6 +42,7 @@ export interface HunkScore {
   behavioralLines: number;
   cosmeticLines: number;
   ocr?: import('./ocr.js').OcrComment[];
+  llm?: import('./llm.js').LlmInsight[];
 }
 
 export interface FileScore {

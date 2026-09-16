@@ -1,18 +1,30 @@
 #!/usr/bin/env node
 import { execFileSync } from 'node:child_process';
-import { readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { basename, resolve } from 'node:path';
 import { tmpdir } from 'node:os';
 import { pathToFileURL } from 'node:url';
 import { parseDiff } from './diff.js';
 import { getDiffText, getHeadInfo, openInBrowser, type DiffMode } from './git.js';
+import {
+  applyVerdicts,
+  buildClassificationPrompt,
+  buildTestPrompt,
+  classifyWithLlm,
+  collectCandidates,
+  generateTestCode,
+  redZoneTargets,
+  resolveLlmConfig,
+  testTargetFor,
+  type LlmApplyStats,
+} from './llm.js';
 import { applyOcr, parseOcrJson, type OcrStats } from './ocr.js';
 import { renderHtml } from './reportHtml.js';
 import { analyze } from './score.js';
 import { renderTerminal } from './terminal.js';
 import { LEVEL_ORDER, type AnalysisResult, type FileEntry, type RiskLevel } from './types.js';
 
-export const VERSION = '0.3.1';
+export const VERSION = '0.4.0';
 
 export function buildHelp(): string {
   return `reviewheat ${VERSION}
@@ -27,9 +39,12 @@ Options
   --diff-file <f>   Analyze a unified diff file instead of the local git repo
   --pr <number>     Analyze a GitHub pull request (planned — v0.5)
   --ocr <file|->    Pin open-code-review findings onto the heatmap ('-' reads stdin)
-  --with-ocr        One command: run \`ocr review\` yourself, then overlay its findings
+  --with-ocr        One command: run \`ocr review\` itself, then overlay its findings
                     (requires ocr installed + LLM configured; it will spend tokens)
-  --llm             Add LLM behavior classification (planned — v0.4)
+  --llm             Classify ambiguous (medium) hunks with an LLM — env config:
+                    REVIEWHEAT_LLM_API_KEY / _BASE_URL / _MODEL (Ollama works)
+  --tests           Generate test-file suggestions for HIGH+ files lacking tests
+                    (same env config; files land in reviewheat-suggested-tests/)
   --fail-on <risk>  Exit 1 when a HIGH+ file has no co-changed test (low|medium|high|critical)
   --out <file>      Report path (default: reviewheat-report.html)
   --repo <label>    Display label for the repo (useful with --diff-file)
@@ -55,6 +70,7 @@ interface Options {
   ocr?: string;
   withOcr?: boolean;
   llm?: boolean;
+  tests?: boolean;
   failOn?: RiskLevel;
   out?: string;
   repo?: string;
@@ -72,6 +88,7 @@ function parseArgs(argv: string[]): Options {
       case '--ref': opts.ref = argv[++i] ?? ''; break;
       case '--diff-file': opts.diffFile = argv[++i] ?? ''; break;
       case '--llm': opts.llm = true; break;
+      case '--tests': opts.tests = true; break;
       case '--no-open': opts.open = false; break;
       case '--pr': opts.pr = argv[++i] ?? ''; break;
       case '--ocr': opts.ocr = argv[++i] ?? ''; break;
@@ -95,7 +112,6 @@ function parseArgs(argv: string[]): Options {
 
 const PLANNED: Record<string, string> = {
   '--pr': 'analyzing GitHub pull requests lands in v0.5',
-  '--llm': 'LLM behavior classification lands in v0.4',
 };
 
 const OCR_BINARY = process.platform === 'win32' ? 'ocr.cmd' : 'ocr';
@@ -119,7 +135,7 @@ function runOcrAndCapture(): string {
   }
 }
 
-export function main(argv: string[] = process.argv.slice(2)): number {
+export async function main(argv: string[] = process.argv.slice(2)): Promise<number> {
   let opts: Options;
   try {
     opts = parseArgs(argv);
@@ -214,7 +230,67 @@ export function main(argv: string[] = process.argv.slice(2)): number {
     }
   }
 
+  let llmStats: LlmApplyStats | undefined;
+  const generatedTests: string[] = [];
+  if (opts.llm || opts.tests) {
+    const cfg = resolveLlmConfig();
+    if (!cfg) {
+      console.error(
+        '--llm/--tests: no LLM configured. Set REVIEWHEAT_LLM_API_KEY (+ optional\n' +
+          'REVIEWHEAT_LLM_BASE_URL and REVIEWHEAT_LLM_MODEL). Local Ollama works:\n' +
+          '  REVIEWHEAT_LLM_BASE_URL=http://localhost:11434/v1 REVIEWHEAT_LLM_MODEL=qwen3:8b'
+      );
+      return 2;
+    }
+    if (opts.llm) {
+      const candidates = collectCandidates(result);
+      if (candidates.length === 0) {
+        console.error('--llm: no ambiguous (medium) hunks to classify.');
+      } else {
+        console.error(`--llm: classifying ${candidates.length} hunks via ${cfg.model}…`);
+        try {
+          const verdicts = await classifyWithLlm(cfg, buildClassificationPrompt(candidates));
+          llmStats = applyVerdicts(result, candidates, verdicts);
+        } catch (e) {
+          console.error(`--llm failed: ${e instanceof Error ? e.message : e}`);
+          return 2;
+        }
+      }
+    }
+    if (opts.tests) {
+      const targets = redZoneTargets(result);
+      if (targets.length === 0) {
+        console.error('--tests: no HIGH+ test-gap files — nothing to generate.');
+      } else {
+        mkdirSync('reviewheat-suggested-tests', { recursive: true });
+        for (const entry of targets) {
+          const prompt = buildTestPrompt(entry);
+          if (!prompt) continue;
+          const path = entry.file.newPath || entry.file.oldPath;
+          console.error(`--tests: generating test file for ${path}…`);
+          try {
+            const code = await generateTestCode(cfg, prompt);
+            const outPath = testTargetFor(path)!.testFile;
+            writeFileSync(resolve(outPath), code.endsWith('\n') ? code : code + '\n');
+            generatedTests.push(outPath);
+          } catch (e) {
+            console.error(`  ! ${path}: ${e instanceof Error ? e.message : e}`);
+          }
+        }
+      }
+    }
+  }
+
   console.log(renderTerminal(result, opts.ocr ? ocrStats : undefined));
+  if (llmStats) {
+    console.log(
+      `[llm] ${llmStats.classified}/${llmStats.candidates} ambiguous hunks classified, ${llmStats.adjusted} scores adjusted.`
+    );
+  }
+  if (generatedTests.length > 0) {
+    console.log(`[tests] ${generatedTests.length} suggestion file(s) written:`);
+    for (const g of generatedTests) console.log('  ' + g);
+  }
 
   const outPath = resolve(opts.out ?? 'reviewheat-report.html');
   writeFileSync(outPath, renderHtml(result, opts.ocr ? ocrStats : undefined));
@@ -242,5 +318,13 @@ const invokedDirectly = process.argv[1]
   ? import.meta.url === pathToFileURL(process.argv[1]).href
   : false;
 if (invokedDirectly) {
-  process.exitCode = main();
+  Promise.resolve(main()).then(
+    (code) => {
+      process.exitCode = code;
+    },
+    (e) => {
+      console.error(e instanceof Error ? (e.stack ?? e.message) : e);
+      process.exitCode = 2;
+    }
+  );
 }
