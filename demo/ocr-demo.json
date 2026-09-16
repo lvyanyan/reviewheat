@@ -1,0 +1,22 @@
+{
+  "status": "success",
+  "project_summary": "demo overlay — illustrative OCR findings for vitejs/vite#23446",
+  "comments": [
+    {
+      "path": "packages/vite/src/node/plugins/importAnalysisBuild.ts",
+      "content": "Seen-set lives across builds — make sure it is scoped per bundle, not per plugin instance.",
+      "start_line": 172,
+      "end_line": 177,
+      "category": "bug",
+      "severity": "high"
+    },
+    {
+      "path": "packages/vite/src/node/plugins/importAnalysisBuild.ts",
+      "content": "Dynamic-import cycles: preload order should be covered by a unit test.",
+      "start_line": 193,
+      "end_line": 198,
+      "category": "test",
+      "severity": "medium"
+    }
+  ]
+}
