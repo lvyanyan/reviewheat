@@ -52,6 +52,12 @@ function hunkHtml(entry: FileEntry, idx: number): string {
         )
         .join('')
     : '<span class="chip">context-only</span>';
+  const llmChips = (s.llm ?? [])
+    .map(
+      (l) =>
+        `<span class="chip llmchip">🤖 ${esc(l.label)} ${Math.round(l.confidence * 100)}% — ${esc(l.reason)}</span>`
+    )
+    .join('');
   const body = h.added.length || h.removed.length
     ? [
         ...h.removed.map((l) => `<span class="dl">-${esc(l)}</span>`),
@@ -64,7 +70,7 @@ function hunkHtml(entry: FileEntry, idx: number): string {
       <span class="hunkloc">@ +${h.newStart},${h.newLines} −${h.oldStart},${h.oldLines}${h.context ? ` @@ ${esc(h.context)}` : ''}</span>
       <span class="risknum" style="color:${LEVEL_META[s.level].color}">risk ${s.risk}</span>
     </div>
-    <div class="chips">${chips}</div>
+    <div class="chips">${chips}${llmChips}</div>
     ${ocrHtml(s.ocr)}
     <pre>${body}</pre>
   </div>`;
@@ -133,6 +139,7 @@ export function renderHtml(result: AnalysisResult, ocrStats?: OcrStats): string 
   .risknum { font-weight:700; font-size:12px; }
   .chips { margin:6px 0; display:flex; gap:6px; flex-wrap:wrap; }
   .chip { font-size:11px; background:#161b22; border:1px solid #30363d; border-radius:10px; padding:1px 8px; color:#a5b1bd; }
+  .llmchip { border-color:#1f6feb; color:#79c0ff; }
   pre { margin:0; padding:8px 0; overflow-x:auto; font-size:12px; line-height:1.55; }
   .al { display:block; color:#7ee2a8; background:rgba(46,160,67,.12); }
   .dl { display:block; color:#ffb3b3; background:rgba(248,81,73,.12); }

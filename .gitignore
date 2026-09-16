@@ -5,6 +5,7 @@ coverage/
 .env
 reviewheat-report.html
 bench-results.json
+reviewheat-suggested-tests/
 demo/*.png
 demo/report.html
 demo/terminal.html
